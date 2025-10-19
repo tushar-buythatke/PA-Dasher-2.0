@@ -25,7 +25,6 @@ export default function DashboardPage() {
   const [showPOSGrid, setShowPOSGrid] = useState(true)
   const [showNotificationTrends, setShowNotificationTrends] = useState(true)
   const [showAnalytics, setShowAnalytics] = useState(false)
-  const [enableSounds, setEnableSounds] = useState(false)
 
   return (
     <div className="bg-muted min-h-screen p-4 md:p-6">
@@ -42,13 +41,11 @@ export default function DashboardPage() {
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
                 <DashboardToggles
                   showStatusBar={showStatusBar}
-                  setShowStatusBar={setShowStatusBar}
+                  setShowStatusBar={(value) => setShowStatusBar(Boolean(value))}
                   showRealtime={showRealtime}
-                  setShowRealtime={setShowRealtime}
+                  setShowRealtime={(value) => setShowRealtime(Boolean(value))}
                   showAlerts={showAlerts}
-                  setShowAlerts={setShowAlerts}
-                  enableSounds={enableSounds}
-                  setEnableSounds={setEnableSounds}
+                  setShowAlerts={(value) => setShowAlerts(Boolean(value))}
                 />
                 <Button asChild variant="outline" className="whitespace-nowrap">
                   <Link to="/analytics">Go to Analytics</Link>
@@ -60,7 +57,7 @@ export default function DashboardPage() {
 
         {showStatusBar && (
           <div className="transition-all duration-300">
-            <DynamicStatusBar enableSounds={enableSounds} />
+            <DynamicStatusBar enableSounds={false} />
           </div>
         )}
 
@@ -69,9 +66,9 @@ export default function DashboardPage() {
             title="Real-Time Monitoring"
             visible={showRealtime || showAlerts}
             onToggle={() => {
-              const next = !(showRealtime || showAlerts)
-              setShowRealtime(next)
-              setShowAlerts(next)
+              const nextVisible = !(showRealtime || showAlerts)
+              setShowRealtime(nextVisible)
+              setShowAlerts(nextVisible)
             }}
           />
 
