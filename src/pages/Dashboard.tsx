@@ -11,6 +11,7 @@ import GlobalStats from "@/components/dashboard/global-stats"
 import POSStatsGrid from "@/components/dashboard/pos-stats-grid"
 import ErrorTrends from "@/components/dashboard/error-trends"
 import { EventVolumeChart } from "@/components/dashboard/event-volume-chart"
+import { NotificationTrends } from "@/components/dashboard/notification-trends"
 import { Button } from "@/components/ui/button"
 import { Link } from "react-router-dom"
 
@@ -22,6 +23,7 @@ export default function DashboardPage() {
   const [showErrorTrends, setShowErrorTrends] = useState(true)
   const [showEventVolume, setShowEventVolume] = useState(true)
   const [showPOSGrid, setShowPOSGrid] = useState(true)
+  const [showNotificationTrends, setShowNotificationTrends] = useState(true)
   const [showAnalytics, setShowAnalytics] = useState(false)
   const [enableSounds, setEnableSounds] = useState(false)
 
@@ -105,6 +107,15 @@ export default function DashboardPage() {
             onToggle={() => setShowErrorTrends((value) => !value)}
           />
           {showErrorTrends && <ErrorTrends />}
+        </div>
+
+        <div className="space-y-4">
+          <SectionToggle
+            title="Notification Performance"
+            visible={showNotificationTrends}
+            onToggle={() => setShowNotificationTrends((value) => !value)}
+          />
+          {showNotificationTrends && <NotificationTrends />}
         </div>
 
         <div className="space-y-4">

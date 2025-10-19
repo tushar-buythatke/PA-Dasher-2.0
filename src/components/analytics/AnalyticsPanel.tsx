@@ -16,6 +16,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
 import { type DateRange } from "react-day-picker"
 import { format } from "date-fns"
+import { NotificationTrends } from "@/components/dashboard/notification-trends"
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
@@ -113,6 +114,7 @@ export default function AnalyticsPanel() {
     return { from, to }
   })
   const [selectedPOS, setSelectedPOS] = useState<string>("2")
+  const [notificationRange, setNotificationRange] = useState<{ startDate?: string; endDate?: string } | null>(null)
 
   const formatDelayHours = (seconds: number | null | undefined) => {
     const hours = Number(seconds ?? 0) / 3600
@@ -123,13 +125,20 @@ export default function AnalyticsPanel() {
   const handleRangeSelect = (range?: DateRange) => {
     if (!range) {
       setDateRange({ from: undefined, to: undefined })
+      setNotificationRange(null)
       return
     }
     const { from, to } = range
     if (from && to && from > to) {
       setDateRange({ from: to, to: from })
+      setNotificationRange({ startDate: format(to, "yyyy-MM-dd"), endDate: format(from, "yyyy-MM-dd") })
     } else {
       setDateRange({ from, to })
+      if (from && to) {
+        setNotificationRange({ startDate: format(from, "yyyy-MM-dd"), endDate: format(to, "yyyy-MM-dd") })
+      } else {
+        setNotificationRange(null)
+      }
     }
   }
 
@@ -367,6 +376,15 @@ export default function AnalyticsPanel() {
               </CardHeader>
             </Card>
           </div>
+
+          <NotificationTrends
+            defaultPOS={selectedPOS}
+            controlledPOS={selectedPOS}
+            startDate={notificationRange?.startDate}
+            endDate={notificationRange?.endDate}
+            hideRangeSelect
+            showDatePopover={false}
+          />
 
           {errorChartData.length > 0 && (
             <Card>

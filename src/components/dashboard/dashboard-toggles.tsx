@@ -2,6 +2,7 @@
 
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
+import { ThemeToggle } from "@/components/theme/theme-toggle"
 
 type Props = {
   showStatusBar: boolean
@@ -10,8 +11,6 @@ type Props = {
   setShowRealtime: (v: boolean) => void
   showAlerts: boolean
   setShowAlerts: (v: boolean) => void
-  enableSounds: boolean
-  setEnableSounds: (v: boolean) => void
 }
 
 export function DashboardToggles({
@@ -21,8 +20,6 @@ export function DashboardToggles({
   setShowRealtime,
   showAlerts,
   setShowAlerts,
-  enableSounds,
-  setEnableSounds,
 }: Props) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 items-center">
@@ -38,9 +35,8 @@ export function DashboardToggles({
         <Switch id="alerts" checked={showAlerts} onCheckedChange={setShowAlerts} />
         <Label htmlFor="alerts">Alerts</Label>
       </div>
-      <div className="flex items-center gap-2">
-        <Switch id="sounds" checked={enableSounds} onCheckedChange={setEnableSounds} />
-        <Label htmlFor="sounds">Sound Alerts</Label>
+      <div className="col-span-2 md:col-span-1 md:justify-self-end md:justify-self-start">
+        <ThemeToggle />
       </div>
     </div>
   )
