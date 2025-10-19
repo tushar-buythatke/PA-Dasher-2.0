@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import useSWR from "swr"
-import { Calendar as CalendarIcon, Download, Filter, TrendingUp, ArrowUpRight, ArrowDownRight, RefreshCw } from "lucide-react"
+import { Calendar as CalendarIcon, Download, Filter, TrendingUp, ArrowUpRight, ArrowDownRight, RefreshCw, Clock } from "lucide-react"
 import { Line, LineChart, Bar, BarChart, XAxis, YAxis, CartesianGrid } from "recharts"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils"
 import { type DateRange } from "react-day-picker"
 import { format } from "date-fns"
 import { NotificationTrends } from "@/components/dashboard/notification-trends"
+import NormalizedErrorScore from "@/components/analytics/NormalizedErrorScore"
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
@@ -38,6 +39,239 @@ const EVENT_COLOR_MAP: Record<string, string> = {
   PA_SPIDY_FEED: "var(--chart-feed-updates)",
   PA_SPIDY_RECEIVED: "var(--chart-feed-received)",
   PA_PRICE_UPDATED: "var(--chart-price-updates)",
+}
+
+// --- START: Service Quality Data Types (Defined here to fix ServiceQualitySectionProps) ---
+
+type DelayDistribution = {
+  under_60_min?: number | null
+  between_60_120_min?: number | null
+  between_120_180_min?: number | null
+  over_180_min?: number | null
+}
+
+type ServiceQualityBucketMeta = {
+  key: keyof DelayDistribution
+  label: string
+  color: string
+}
+
+type ServiceQualityPlatform = {
+  platform: string
+  total: number
+  counts: Record<string, number>
+  slaFailureRate: number
+  highDelayCount: number
+  maxDelayMinutes: number | null
+  minDelayMinutes: number | null
+}
+
+type ServiceQualityData = {
+  platforms: ServiceQualityPlatform[]
+  bucketMeta: readonly ServiceQualityBucketMeta[]
+  totalSamples: number
+  aggregatedSlaFailureRate: number
+  aggregatedHighDelayRate: number
+  maxDelayMinutes: number | null
+  minDelayMinutes: number | null
+}
+
+type ServiceQualitySectionProps = {
+  data: ServiceQualityData | null // <-- FIXED TYPE
+  isLoading: boolean
+  isRefreshing: boolean
+}
+
+// --- END: Service Quality Data Types ---
+
+function ServiceQualitySection({ data, isLoading, isRefreshing }: ServiceQualitySectionProps) {
+  const chartConfig: ChartConfig = useMemo(() => {
+    if (!data) return {}
+    return data.bucketMeta.reduce<ChartConfig>((acc, bucket) => {
+      acc[bucket.label] = {
+        label: bucket.label,
+        color: bucket.color,
+      }
+      return acc
+    }, {})
+  }, [data])
+
+  if (!data && !isLoading) {
+    return null
+  }
+
+  return (
+    <Card>
+      <CardHeader className="space-y-2">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-3">
+            <Clock className="h-5 w-5 text-primary" />
+            <div>
+              <CardTitle>Service Quality Distribution</CardTitle>
+              <CardDescription>Delay profiles across platforms and SLA health</CardDescription>
+            </div>
+          </div>
+          {isRefreshing && (
+            <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+              <RefreshCw className="h-3.5 w-3.5 animate-spin" /> Updating
+            </span>
+          )}
+        </div>
+        {data ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <MetricChip label="Total Samples" value={data.totalSamples.toLocaleString()} tone="default" />
+            <MetricChip
+              label="SLA Failure Rate (>2h)"
+              value={`${data.aggregatedSlaFailureRate.toFixed(2)}%`}
+              tone={data.aggregatedSlaFailureRate > 1 ? "critical" : "success"}
+            />
+            <MetricChip
+              label="High Delay Rate (>1h)"
+              value={`${data.aggregatedHighDelayRate.toFixed(2)}%`}
+              tone={data.aggregatedHighDelayRate > 5 ? "warning" : "default"}
+            />
+            <MetricChip
+              label="Max Observed Delay"
+              value={
+                data.maxDelayMinutes === null
+                  ? "—"
+                  : data.maxDelayMinutes >= 60
+                  ? `${(data.maxDelayMinutes / 60).toFixed(1)}h`
+                  : `${data.maxDelayMinutes.toFixed(0)}m`
+              }
+              tone="default"
+            />
+          </div>
+        ) : null}
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16 text-muted-foreground">
+            <div className="text-center space-y-2">
+              <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+              <p className="text-sm">Loading delay distribution…</p>
+            </div>
+          </div>
+        ) : data ? (
+          <div className="space-y-8">
+            <ChartContainer config={chartConfig} className="h-[360px] w-full">
+              <BarChart data={data.platforms.map((platform) => ({
+                platform: platform.platform,
+                ...platform.counts,
+              }))}>
+                <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="4 4" vertical={false} />
+                <XAxis dataKey="platform" tickLine={false} axisLine={false} tickMargin={8} />
+                <YAxis tickLine={false} axisLine={false} tickMargin={8} />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      formatter={(value, name, payload) => {
+                        const record = payload?.payload as { platform: string } | undefined
+                        if (!record || typeof value !== "number") return [value ?? "—", name]
+                        const platformInfo = data.platforms.find((item) => item.platform === record.platform)
+                        const total = platformInfo?.total ?? 0
+                        const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : "0.0"
+                        return [`${value.toLocaleString()} (${percentage}%)`, name]
+                      }}
+                    />
+                  }
+                />
+                {data.bucketMeta.map((bucket) => (
+                  <Bar key={bucket.key} dataKey={bucket.label} stackId="a" fill={bucket.color} radius={[4, 4, 0, 0]} />
+                ))}
+              </BarChart>
+            </ChartContainer>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              {data.platforms.map((platform) => {
+                const severe = (platform.counts[">3 hours"] ?? 0)
+                const moderate = (platform.counts["1-2 hours"] ?? 0) + (platform.counts["2-3 hours"] ?? 0) // <-- FIXED LOGIC (1-3 hours)
+                const healthy = platform.counts["<1 hour"] ?? 0
+                const totalSamples = platform.total
+                return (
+                  <div key={platform.platform} className="rounded-xl border border-border/60 bg-muted/40 p-4">
+                    <div className="flex items-center justify-between text-sm font-semibold text-foreground">
+                      <span>{platform.platform}</span>
+                      <span className="font-mono text-xs text-muted-foreground">{platform.total.toLocaleString()} logs</span>
+                    </div>
+                    <div className="mt-3 space-y-2 text-xs text-muted-foreground">
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-2 text-emerald-500">
+                          <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                          <span>
+                            <strong className="text-foreground">{healthy.toLocaleString()}</strong> <span className="text-muted-foreground">&lt;1 hour</span>
+                          </span>
+                        </span>
+                        <span>
+                          {totalSamples > 0 ? ((healthy / totalSamples) * 100).toFixed(1) : "0.0"}%
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-2 text-amber-500">
+                          <span className="h-2 w-2 rounded-full bg-amber-500" />
+                          <span>
+                            <strong className="text-foreground">{moderate.toLocaleString()}</strong> <span className="text-muted-foreground">1-3 hours</span> {/* Label remains 1-3 hours */}
+                          </span>
+                        </span>
+                        <span>
+                          {totalSamples > 0 ? ((moderate) / totalSamples * 100).toFixed(1) : "0.0"}% {/* FIXED CALCULATION */}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-2 text-destructive">
+                          <span className="h-2 w-2 rounded-full bg-destructive" />
+                          <span>
+                            <strong className="text-foreground">{severe.toLocaleString()}</strong> <span className="text-muted-foreground">&gt;3 hours</span>
+                          </span>
+                        </span>
+                        <span>
+                          {totalSamples > 0 ? ((severe / totalSamples) * 100).toFixed(1) : "0.0"}%
+                        </span>
+                      </div>
+                    </div>
+                    <div className="mt-4 rounded-lg border border-border/60 bg-background/80 p-3 text-xs text-muted-foreground">
+                      <div className="flex items-center justify-between">
+                        <span>SLA Failure Rate</span>
+                        <span className="font-semibold text-foreground">{platform.slaFailureRate.toFixed(2)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center py-16 text-muted-foreground">
+            <p className="text-sm">No delay data available for this POS and range.</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+type MetricChipTone = "default" | "success" | "warning" | "critical"
+
+type MetricChipProps = {
+  label: string
+  value: string
+  tone: MetricChipTone
+}
+
+function MetricChip({ label, value, tone }: MetricChipProps) {
+  const toneClasses: Record<MetricChipTone, string> = {
+    default: "bg-muted/60 text-foreground",
+    success: "bg-emerald-500/10 text-emerald-600",
+    warning: "bg-amber-500/10 text-amber-600",
+    critical: "bg-red-500/10 text-red-600",
+  }
+
+  return (
+    <div className={`rounded-lg border border-border/60 px-4 py-3 shadow-sm ${toneClasses[tone]}`}>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-foreground">{value}</p>
+    </div>
+  )
 }
 
 const toTitle = (key: string) =>
@@ -83,6 +317,34 @@ type DelayMetrics = {
   avg_android_delay?: number | null
   avg_chrome_delay?: number | null
   avg_email_delay?: number | null
+}
+
+type DelayPlatformBreakdown = {
+  count?: number | null
+  avg_minutes?: string | number | null
+  avg_hours?: string | number | null
+  min_minutes?: string | number | null
+  max_minutes?: string | number | null
+  high_delay_count?: number | string | null
+  high_delay_percentage?: string | number | null
+  delay_distribution?: DelayDistribution
+  sla_failure_rate?: string | number | null
+}
+
+type NotificationDelaysEntry = {
+  pos: number
+  android?: DelayPlatformBreakdown
+  chrome?: DelayPlatformBreakdown
+  email?: DelayPlatformBreakdown
+}
+
+type NotificationDelaysResponse = {
+  success?: boolean
+  data?: {
+    period?: { startDate?: string; endDate?: string }
+    pos?: number | null
+    delay_analysis?: NotificationDelaysEntry[]
+  }
 }
 
 type PosStatsResponse = {
@@ -147,6 +409,7 @@ export default function AnalyticsPanel() {
 
   const rangeDisabled = !startDate || !endDate
 
+  // SWR for POS general stats, errors, events, and delay metrics
   const {
     data: posData,
     isLoading,
@@ -162,6 +425,7 @@ export default function AnalyticsPanel() {
     },
   )
 
+  // SWR for Event Summary
   const { data: eventSummaryResponse, mutate: mutateEventSummary } = useSWR<EventSummaryResponse>(
     rangeDisabled ? null : `/api/v1/events/summary/all?pos=${selectedPOS}&startDate=${startDate}&endDate=${endDate}`,
     fetcher,
@@ -172,9 +436,27 @@ export default function AnalyticsPanel() {
     },
   )
 
+  // SWR for Notification Delays (Service Quality Section) <-- ADDED
+  const {
+    data: notificationDelaysResponse,
+    isLoading: isLoadingDelays,
+    isValidating: isValidatingDelays,
+    mutate: mutateNotificationDelays,
+  } = useSWR<NotificationDelaysResponse>(
+    rangeDisabled ? null : `/api/v1/notifications/delays?pos=${selectedPOS}&startDate=${startDate}&endDate=${endDate}`,
+    fetcher,
+    {
+      refreshInterval: 300_000,
+      revalidateOnFocus: false,
+      dedupingInterval: 60_000,
+    },
+  )
+
+
   const handleRefresh = () => {
     mutatePosData()
     mutateEventSummary()
+    mutateNotificationDelays() // <-- ADDED
   }
 
   const errors = posData?.data?.errors ?? []
@@ -240,6 +522,103 @@ export default function AnalyticsPanel() {
     }, {} as ChartConfig)
   }, [eventSeriesKeys])
 
+  const serviceQuality: ServiceQualityData | null = useMemo(() => { // <-- Explicitly typed
+    const entry = notificationDelaysResponse?.data?.delay_analysis?.find(
+      (item) => String(item.pos) === selectedPOS,
+    )
+    if (!entry) return null
+
+    const bucketMeta: readonly ServiceQualityBucketMeta[] = [
+      { key: "under_60_min", label: "<1 hour", color: "hsl(142 70% 45%)" },
+      { key: "between_60_120_min", label: "1-2 hours", color: "hsl(48 96% 53%)" },
+      { key: "between_120_180_min", label: "2-3 hours", color: "hsl(24 95% 53%)" },
+      { key: "over_180_min", label: ">3 hours", color: "hsl(0 84% 60%)" },
+    ] as const
+
+    const normalizePlatform = (label: string, breakdown?: DelayPlatformBreakdown): ServiceQualityPlatform => {
+      const distribution = breakdown?.delay_distribution ?? {}
+      const counts = bucketMeta.reduce<Record<string, number>>((acc, bucket) => {
+        acc[bucket.label] = Number(distribution[bucket.key] ?? 0)
+        return acc
+      }, {})
+
+      const total = Number(breakdown?.count ?? 0)
+      const slaFailureRate = Number(breakdown?.sla_failure_rate ?? 0)
+      const highDelayCount = Number(breakdown?.high_delay_count ?? 0)
+
+      const maxDelayMinutes = breakdown?.max_minutes !== null && breakdown?.max_minutes !== undefined
+        ? Number(breakdown.max_minutes)
+        : null
+      const minDelayMinutes = breakdown?.min_minutes !== null && breakdown?.min_minutes !== undefined
+        ? Number(breakdown.min_minutes)
+        : null
+
+      return {
+        platform: label,
+        total,
+        counts,
+        slaFailureRate,
+        highDelayCount,
+        maxDelayMinutes,
+        minDelayMinutes,
+      }
+    }
+
+    const platforms = [
+      normalizePlatform("Chrome", entry.chrome),
+      normalizePlatform("Android", entry.android),
+      normalizePlatform("Email", entry.email),
+    ]
+
+    const totalSamples = platforms.reduce((acc, platform) => acc + platform.total, 0)
+    if (totalSamples === 0) {
+      return {
+        platforms,
+        bucketMeta,
+        totalSamples,
+        aggregatedSlaFailureRate: 0,
+        aggregatedHighDelayRate: 0,
+        maxDelayMinutes: null,
+        minDelayMinutes: null,
+      }
+    }
+
+    const totalSlaBreaches = platforms.reduce((acc, platform) => {
+      const severeBuckets = ["2-3 hours", ">3 hours"] as const
+      const severeCount = severeBuckets.reduce((sum, key) => sum + (platform.counts[key] ?? 0), 0)
+      return acc + severeCount
+    }, 0)
+
+    const totalHighDelayCount = platforms.reduce((acc, platform) => acc + platform.highDelayCount, 0)
+
+    const aggregatedSlaFailureRate = (totalSlaBreaches / totalSamples) * 100
+    const aggregatedHighDelayRate = (totalHighDelayCount / totalSamples) * 100
+
+    const maxDelayMinutes = platforms.reduce<number | null>((acc, platform) => {
+      const value = platform.maxDelayMinutes
+      if (value === null || Number.isNaN(value)) return acc
+      if (acc === null) return value
+      return Math.max(acc, value)
+    }, null)
+
+    const minDelayMinutes = platforms.reduce<number | null>((acc, platform) => {
+      const value = platform.minDelayMinutes
+      if (value === null || Number.isNaN(value)) return acc
+      if (acc === null) return value
+      return Math.min(acc, value)
+    }, null)
+
+    return {
+      platforms,
+      bucketMeta,
+      totalSamples,
+      aggregatedSlaFailureRate,
+      aggregatedHighDelayRate,
+      maxDelayMinutes,
+      minDelayMinutes,
+    }
+  }, [notificationDelaysResponse, selectedPOS])
+
   return (
     <div className="space-y-6">
       <Card>
@@ -257,7 +636,7 @@ export default function AnalyticsPanel() {
                 variant="outline"
                 size="icon"
                 onClick={handleRefresh}
-                disabled={isValidating || rangeDisabled}
+                disabled={isValidating || isValidatingDelays || rangeDisabled} // <-- Added isValidatingDelays
               >
                 <RefreshCw className="w-4 h-4" />
               </Button>
@@ -321,7 +700,7 @@ export default function AnalyticsPanel() {
         </CardHeader>
       </Card>
 
-      {isLoading ? (
+      {isLoading || isLoadingDelays ? ( // <-- Added isLoadingDelays
         <Card>
           <CardContent className="flex items-center justify-center py-16">
             <div className="text-center space-y-2">
@@ -385,6 +764,14 @@ export default function AnalyticsPanel() {
             hideRangeSelect
             showDatePopover={false}
           />
+
+          <ServiceQualitySection
+            data={serviceQuality}
+            isLoading={isLoadingDelays} // Corrected: only rely on delays loading state here
+            isRefreshing={isValidatingDelays}
+          />
+
+          <NormalizedErrorScore controlledPOS={selectedPOS} />
 
           {errorChartData.length > 0 && (
             <Card>
