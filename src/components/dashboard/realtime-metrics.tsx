@@ -40,7 +40,7 @@ export function RealtimeMetrics() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
 
-  const { data, error } = useSWR(["/api/v1/errors/realtime"], fetcher, {
+  const { data, error } = useSWR(["/pa-dasher-api/errors/realtime"], fetcher, {
     refreshInterval: 60_000,
   })
 
@@ -92,7 +92,7 @@ export function RealtimeMetrics() {
 
   const shouldFetchTop5 = normalized.length === 0
   const { data: fallbackTop5, error: fallbackError } = useSWR(
-    shouldFetchTop5 ? ["/api/v1/stats/top5", "fallback"] : null,
+    shouldFetchTop5 ? ["/pa-dasher-api/stats/top5", "fallback"] : null,
     fetcher,
     {
       refreshInterval: 120_000,

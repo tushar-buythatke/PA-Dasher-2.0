@@ -49,7 +49,7 @@ type RawTop5Item = {
 
 export default function POSStatsGrid() {
   const { data, isLoading } = useSWR<{ data: { pos_list: POSSummary[] } }>(
-    ["/api/v1/stats/all-pos-summary?limit=10", "pos-summary"],
+    ["/pa-dasher-api/stats/all-pos-summary?limit=10", "pos-summary"],
     fetcher,
     {
       refreshInterval: 300_000,
@@ -61,7 +61,7 @@ export default function POSStatsGrid() {
   const primaryList = data?.data?.pos_list || [];
   const shouldLoadFallback = !!data && primaryList.length === 0;
 
-  const { data: top5Data } = useSWR(shouldLoadFallback ? ["/api/v1/stats/top5", "pos-summary-fallback"] : null, fetcher, {
+  const { data: top5Data } = useSWR(shouldLoadFallback ? ["/pa-dasher-api/stats/top5", "pos-summary-fallback"] : null, fetcher, {
     refreshInterval: 120_000,
     revalidateOnFocus: true,
   })

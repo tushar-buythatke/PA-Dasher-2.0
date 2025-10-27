@@ -65,7 +65,7 @@ type RealtimeResponse = {
 }
 
 export function DynamicStatusBar({ enableSounds = false }: { enableSounds?: boolean }) {
-  const { data, error } = useSWR<RealtimeResponse>(["/api/v1/stats/top5"], fetcher, {
+  const { data, error } = useSWR<RealtimeResponse>(["/pa-dasher-api/stats/top5"], fetcher, {
     refreshInterval: 60_000,
     revalidateOnFocus: true,
   })

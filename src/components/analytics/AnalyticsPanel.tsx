@@ -416,7 +416,7 @@ export default function AnalyticsPanel() {
     mutate: mutatePosData,
     isValidating,
   } = useSWR<PosStatsResponse>(
-    rangeDisabled ? null : `/api/v1/stats/pos/${selectedPOS}?startDate=${startDate}&endDate=${endDate}`,
+    rangeDisabled ? null : `/pa-dasher-api/stats/pos/${selectedPOS}?startDate=${startDate}&endDate=${endDate}`,
     fetcher,
     {
       refreshInterval: 300_000,
@@ -427,7 +427,7 @@ export default function AnalyticsPanel() {
 
   // SWR for Event Summary
   const { data: eventSummaryResponse, mutate: mutateEventSummary } = useSWR<EventSummaryResponse>(
-    rangeDisabled ? null : `/api/v1/events/summary/all?pos=${selectedPOS}&startDate=${startDate}&endDate=${endDate}`,
+    rangeDisabled ? null : `/pa-dasher-api/events/summary/all?pos=${selectedPOS}&startDate=${startDate}&endDate=${endDate}`,
     fetcher,
     {
       refreshInterval: 300_000,
@@ -443,7 +443,7 @@ export default function AnalyticsPanel() {
     isValidating: isValidatingDelays,
     mutate: mutateNotificationDelays,
   } = useSWR<NotificationDelaysResponse>(
-    rangeDisabled ? null : `/api/v1/notifications/delays?pos=${selectedPOS}&startDate=${startDate}&endDate=${endDate}`,
+    rangeDisabled ? null : `/pa-dasher-api/notifications/delays?pos=${selectedPOS}&startDate=${startDate}&endDate=${endDate}`,
     fetcher,
     {
       refreshInterval: 300_000,

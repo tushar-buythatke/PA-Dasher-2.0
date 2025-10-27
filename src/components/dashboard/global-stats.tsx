@@ -39,7 +39,7 @@ export default function GlobalStats() {
 
   const startDateStr = startDate.toISOString().split("T")[0];
   const endDateStr = endDate.toISOString().split("T")[0];
-  const swrKey = `/api/v1/stats/global?startDate=${startDateStr}&endDate=${endDateStr}`;
+  const swrKey = `/pa-dasher-api/stats/global?startDate=${startDateStr}&endDate=${endDateStr}`;
 
   const { data, isLoading } = useSWR<{ data: { global_stats: GlobalStat[] } }>(
     swrKey,

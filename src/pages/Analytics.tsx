@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react"
-import { Eye, EyeOff, BarChart3, ArrowLeft } from "lucide-react"
+import { Eye, EyeOff, BarChart3, ArrowLeft, LogOut, User } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import useSWR from "swr"
+import { useAuth } from "@/contexts/AuthContext"
 
 import AnalyticsPanel from "@/components/analytics/AnalyticsPanel"
 import { EventVolumeChart } from "@/components/dashboard/event-volume-chart"
@@ -18,6 +19,7 @@ import ErrorTrends from "@/components/dashboard/error-trends"
 
 export default function AnalyticsPage() {
   const navigate = useNavigate()
+  const { user, logout } = useAuth()
   const [visibleSections, setVisibleSections] = useState({
     eventVolume: true,
     notificationSummary: true,
@@ -25,6 +27,10 @@ export default function AnalyticsPage() {
     errorTrends: false,
   })
   const [summaryPOS, setSummaryPOS] = useState<string>("all")
+
+  const handleLogout = async () => {
+    await logout()
+  }
 
   type NotificationSummaryResponse = {
     data: NotificationSummaryData
@@ -35,7 +41,7 @@ export default function AnalyticsPage() {
     isLoading: isLoadingNotifications,
     error: notificationError,
   } = useSWR<NotificationSummaryResponse>(
-    "/api/v1/notifications/summary",
+    "/pa-dasher-api/notifications/summary",
     (url: string) => fetch(url).then((res) => res.json()),
     {
       refreshInterval: 60_000,
@@ -109,6 +115,19 @@ export default function AnalyticsPage() {
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => toggleAll(false)}>
                   Hide all
+                </Button>
+                <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-md">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">{user?.userName || 'User'}</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="gap-2 text-destructive hover:text-destructive"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Logout
                 </Button>
               </div>
             </div>

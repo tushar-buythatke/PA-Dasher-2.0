@@ -116,7 +116,7 @@ export function EventVolumeChart() {
   const startDate = formatQueryDate(dateRange?.from)
   const endDate = formatQueryDate(dateRange?.to)
 
-  const swrKey = startDate && endDate ? `/api/v1/stats/pos/${selectedPOS}?startDate=${startDate}&endDate=${endDate}` : null
+  const swrKey = startDate && endDate ? `/pa-dasher-api/stats/pos/${selectedPOS}?startDate=${startDate}&endDate=${endDate}` : null
 
   const { data, isLoading, mutate, isValidating } = useSWR<PosStatsResponse>(swrKey, fetcher, {
     refreshInterval: 60_000,

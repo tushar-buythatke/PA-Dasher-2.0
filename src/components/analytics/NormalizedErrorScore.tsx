@@ -319,7 +319,7 @@ export default function NormalizedErrorScore(props: NormalizedErrorScoreProps) {
     return search.toString()
   }, [selectedDays, selectedHour, effectivePOS])
 
-  const swrKey = `/api/v1/errors/hourly-comparison?${params}&testDayOffset=1`
+  const swrKey = `/pa-dasher-api/errors/hourly-comparison?${params}&testDayOffset=1`
   const { data, error, isLoading, mutate, isValidating } = useSWR<HourlyComparisonResponse>(swrKey, fetcher, {
     refreshInterval: 300_000,
     revalidateOnFocus: false,

@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff, LogOut, User } from "lucide-react"
 
 import { DynamicStatusBar } from "@/components/dashboard/dynamic-status-bar"
 import { CriticalAlertsPanel } from "@/components/dashboard/critical-alerts"
@@ -14,8 +14,10 @@ import { EventVolumeChart } from "@/components/dashboard/event-volume-chart"
 import { NotificationTrends } from "@/components/dashboard/notification-trends"
 import { Button } from "@/components/ui/button"
 import { Link } from "react-router-dom"
+import { useAuth } from "@/contexts/AuthContext"
 
 export default function DashboardPage() {
+  const { user, logout } = useAuth()
   const [showStatusBar, setShowStatusBar] = useState(true)
   const [showRealtime, setShowRealtime] = useState(true)
   const [showAlerts, setShowAlerts] = useState(true)
@@ -25,6 +27,10 @@ export default function DashboardPage() {
   const [showPOSGrid, setShowPOSGrid] = useState(true)
   const [showNotificationTrends, setShowNotificationTrends] = useState(true)
   const [showAnalytics, setShowAnalytics] = useState(false)
+
+  const handleLogout = async () => {
+    await logout()
+  }
 
   return (
     <div className="bg-muted min-h-screen p-4 md:p-6">
@@ -47,9 +53,24 @@ export default function DashboardPage() {
                   showAlerts={showAlerts}
                   setShowAlerts={(value) => setShowAlerts(Boolean(value))}
                 />
-                <Button asChild variant="outline" className="whitespace-nowrap">
-                  <Link to="/analytics">Go to Analytics</Link>
-                </Button>
+                <div className="flex gap-2">
+                  <Button asChild variant="outline" className="whitespace-nowrap">
+                    <Link to="/analytics">Go to Analytics</Link>
+                  </Button>
+                  <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-md">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">{user?.userName || 'User'}</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleLogout}
+                    className="gap-2 text-destructive hover:text-destructive"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Logout
+                  </Button>
+                </div>
               </div>
             </div>
           </CardHeader>

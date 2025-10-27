@@ -102,7 +102,7 @@ export default function ErrorTrends() {
     query.set("endDate", endDate);
   }
 
-  const swrKey = `/api/v1/errors/trends?${query.toString()}`;
+  const swrKey = `/pa-dasher-api/errors/trends?${query.toString()}`;
 
   const { data, isLoading, mutate, isValidating } = useSWR<TrendResponse>(
     swrKey,

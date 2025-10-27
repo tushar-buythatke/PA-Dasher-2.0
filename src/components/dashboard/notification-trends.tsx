@@ -117,7 +117,7 @@ export function NotificationTrends({
     return option?.label ?? selectedPOS
   }, [selectedPOS])
 
-  const swrKey: [string, RequestInit] = ["/api/v1/notifications/trends", requestInit]
+  const swrKey: [string, RequestInit] = ["/pa-dasher-api/notifications/trends", requestInit]
 
   const { data, isLoading, mutate, isValidating } = useSWR<{
     success: boolean
